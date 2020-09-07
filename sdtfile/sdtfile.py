@@ -348,7 +348,7 @@ class FileInfo(str):
 class SetupBlock:
     """Setup block ascii and binary data."""
 
-    __slots__ = ('ascii', 'binary')
+    __slots__ = ('ascii', 'binary', 'gvd')
 
     def __init__(self, value):
         assert value.startswith(b'*SETUP') and value.strip().endswith(b'*END')
@@ -356,10 +356,21 @@ class SetupBlock:
         if i:
             self.ascii = value[:i].decode('windows-1250')
             self.binary = bytes(value[i + 15 : -10])
+            bin_hdr_offs = 5
+            spc_hdr_offs = 14
+            setup_hdr = numpy.rec.fromstring(self.binary, dtype=SETUP_BIN_HDR,
+                                        offset=bin_hdr_offs, shape=1, byteorder='<')
+            spc_hdr = numpy.rec.fromstring(self.binary, dtype=SPC_BIN_HDR,
+                                        offset=bin_hdr_offs+spc_hdr_offs,
+                                        shape=1, byteorder='<')
+            self.gvd = numpy.rec.fromstring(self.binary, dtype=GVD_PARAM,
+                                        offset=bin_hdr_offs+int(spc_hdr.GVD_offs),
+                                        shape=1, byteorder='<')
             # TODO: parse binary data here
         else:
             self.ascii = value.decode('windows-1250')
             self.binary = None
+            self.gvd = None
 
     def __str__(self):
         return self.ascii
@@ -467,6 +478,31 @@ SETUP_BIN_HDR = [
     ('para_length', 'u4'),
     ('reserved1', 'u4'),
     ('reserved2', 'u2'),
+]
+
+SPC_BIN_HDR = [
+    ('FCS_old_offs', 'u4'),
+    ('FCS_old_size', 'u4'),
+    ('gr1_offs', 'u4'),
+    ('gr1_size', 'u4'),
+    ('FCS_offs', 'u4'),
+    ('FCS_size', 'u4'),
+    ('FIDA_offs', 'u4'),
+    ('FIDA_size', 'u4'),
+    ('FILDA_offs', 'u4'),
+    ('FILDA_size', 'u4'),
+    ('gr2_offs', 'u4'),
+    ('gr_no', 'u2'),
+    ('hst_no', 'u2'),
+    ('hst_offs','u4'),
+    ('GVD_offs', 'u4'),
+    ('GVD_size', 'u2'),
+    ('FIT_offs', 'u2'),
+    ('FIT_size', 'u2'),
+    ('extdev_offs', 'u2'),
+    ('extdev_size', 'u2'),
+    ('binhdrext_offs', 'u4'),
+    ('binhdrext_size', 'u2'),
 ]
 
 # Info collected when measurement finished
@@ -587,6 +623,49 @@ MEASURE_INFO = [
     ('det', 'i2'),
     ('x_axis', 'i2'),
     ('MeasHISTInfo', HIST_INFO),
+]
+
+GVD_DATA = [
+    ('active', 'i2'),
+    ('frame_size', 'u2'),
+    ('lasers_active', 'i2'),
+    ('multiplex', 'u2'),
+    ('limit_scan', 'i2'),
+    ('frame_counter', 'u2'),
+    ('scan_polarity', 'u2'),
+    ('scan_type', 'i2'),
+    ('line_time', 'f4'),
+    ('zoom_factor', 'f4'),
+    ('offset_x', 'f4'),
+    ('offset_y', 'f4'),
+    ('park_offs_x', 'f4'),
+    ('park_offs_y', 'f4'),
+    ('l1_power', 'f4'),
+    ('l2_power', 'f4'),
+    ('rect_zoom_x', 'f4'),
+    ('rect_zoom_y', 'f4'),
+    ('scan_rate', 'i2'),
+    ('park_center', 'i2'),
+    ('scan_trigger', 'i2'),
+    ('sreserve', 'i2'),
+    ('dreserve', 'f8, f8'),
+]
+
+BH_PANEL_ATTR = [
+    ('top','i4'),
+    ('left','i4'),
+    ('height','i4'),
+    ('width','i4'),
+    ('flags','i4'),
+]
+
+GVD_PARAM =  [
+    ('active','i4'),
+    ('dcs_and_beam_blank','u4'),
+    ('gvd_data', GVD_DATA),
+    ('DAC_per_step','u2'),
+    ('line_pulse_shift','i2'),
+    ('pnl_attr', BH_PANEL_ATTR),
 ]
 
 BLOCK_HEADER = [
